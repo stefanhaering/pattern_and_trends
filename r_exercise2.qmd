@@ -1,0 +1,43 @@
+---
+title: "Untitled"
+format: html
+---
+
+```{r}
+nor <- Sys.time()
+
+```
+
+
+
+
+
+
+
+
+# Task 1: Import your data
+
+```{r}
+library("readr") 
+library("sf") 
+
+wildschwein_BE <- read_delim("wildschwein_BE_2056.csv", ",")
+
+wildschwein_BE <- st_as_sf(wildschwein_BE, coords = c("E", "N"), crs = 2056, remove = FALSE)
+```
+
+# Task 2: Getting an overview
+
+```{r}
+library(dplyr)
+lead(wildschwein_BE$DatetimeUTC)
+
+wildschwein_BE <- group_by(wildschwein_BE, TierID)
+
+wildschwein_BE$diff <- as.numeric(difftime(lead(wildschwein_BE$DatetimeUTC), wildschwein_BE$DatetimeUTC))
+
+wildschwein <- wildschwein_BE
+
+
+```
+
