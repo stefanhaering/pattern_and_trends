@@ -70,6 +70,49 @@ hist(wildschwein$speed_ms)
 
 ```{r}
 caro <- read_delim("caro60.csv", ",")
+caro <- st_as_sf(caro, coords = c("E", "N"), crs = 2056, remove = FALSE)
+
+# reduce the granularity of our sampling interval
+caro_3 <- caro |> 
+  slice(seq(from = 1, to =200, by = 3))
+nrow(caro_3) # 67
+
+caro_6 <- caro |> 
+  slice(seq(from = 1, to =200, by = 6))
+nrow(caro_6) # 34
+
+caro_9 <- caro |> 
+  slice(seq(from = 1, to =200, by = 9))
+nrow(caro_9) # 23
+  
+# calculate timelag, steplength and speed
+caro_3 <- caro_3 |> 
+  mutate(
+    timelag = as.numeric(difftime(lead(DatetimeUTC), DatetimeUTC, units = "secs")),
+    steplength = sqrt((E-lead(E))^2 + (N-lead(N))^2),
+    speed = steplength/timelag
+    )
+
+caro_6 <- caro_6 |> 
+  mutate(
+    timelag = as.numeric(difftime(lead(DatetimeUTC), DatetimeUTC, units = "secs")),
+    steplength = sqrt((E-lead(E))^2 + (N-lead(N))^2),
+    speed = steplength/timelag
+    )
+
+caro_9 <- caro_9 |> 
+  mutate(
+    timelag = as.numeric(difftime(lead(DatetimeUTC), DatetimeUTC, units = "secs")),
+    steplength = sqrt((E-lead(E))^2 + (N-lead(N))^2),
+    speed = steplength/timelag
+    )
+
+# compare the speeds visually in a line plot and also visualize the trajectories in a map
+ggplot()+ # mehrere Layer
+  geom_sf(data = caro)+
+  geom_sf(data = caro_3, aes(color = "orange"))+
+  theme_void()
+
 ```
 
 # Task 6: Add your movement data to your repository
