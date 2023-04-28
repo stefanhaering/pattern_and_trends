@@ -3,23 +3,13 @@ title: "Untitled"
 format: html
 ---
 
-```{r}
-nor <- Sys.time()
-
-```
-
-
-
-
-
-
-
-
 # Task 1: Import your data
 
 ```{r}
 library("readr") 
 library("sf") 
+library(ggplot2)
+library(dplyr)
 
 wildschwein_BE <- read_delim("wildschwein_BE_2056.csv", ",")
 
@@ -29,14 +19,63 @@ wildschwein_BE <- st_as_sf(wildschwein_BE, coords = c("E", "N"), crs = 2056, rem
 # Task 2: Getting an overview
 
 ```{r}
-library(dplyr)
+
 lead(wildschwein_BE$DatetimeUTC)
 
 wildschwein_BE <- group_by(wildschwein_BE, TierID)
 
-wildschwein_BE$diff <- as.numeric(difftime(lead(wildschwein_BE$DatetimeUTC), wildschwein_BE$DatetimeUTC))
+wildschwein_BE$diff <- as.numeric(difftime(lead(wildschwein_BE$DatetimeUTC), wildschwein_BE$DatetimeUTC, units = "secs"))
 
 wildschwein <- wildschwein_BE
+as.integer(wildschwein$diff)
+
+wildschwein$TierName |> 
+  unique() # drei wildschweine 
+ggplot(wildschwein, aes(DatetimeUTC, TierName))+
+  geom_point() # unterschiedlich lane Aufnahmeperioden in den Jahren 2014 und 2015
+
+ggplot(wildschwein, aes(diff/60))+
+  geom_histogram(binwith = 1)+
+  lims(x=c(0,5000/60))+
+  scale_y_log10()
+
+wildschwein |> 
+  filter(DatetimeUTC < "2014-08-24") |> 
+  ggplot(aes(DatetimeUTC, diff, color = TierName))+
+  geom_point() # die Aufnahmeintervalle sind in der Nacht höher als am Tag
+```
+
+# Task 3: Deriving movement parameters I: Speed
+
+```{r}
+N1 <- 1204752
+N2 <- 1204863
+E1 <- 2570409
+E2 <- 2570402
+
+sqrt((E1-E2)^2 + (N1-N2)^2) # Formel
+
+wildschwein <- wildschwein |> 
+  group_by(TierName) |> 
+  mutate(steplength_m = sqrt((E-lead(E))^2 + (N-lead(N))^2)) # Distanz
+
+wildschwein <- wildschwein |> 
+  mutate(speed_ms = steplength_m/diff) # Geschwindigkeit
+
+hist(wildschwein$speed_ms)
+
+```
+
+# Task 4: Cross-scale movement analysis
+
+```{r}
+caro <- read_delim("caro60.csv", ",")
+```
+
+# Task 6: Add your movement data to your repository
+
+```{r}
+posmo <- read_csv("posmo_2023-03-01T00_00_00+01_00-2023-04-28T23_59_59+02_00.csv")
 
 
 ```
