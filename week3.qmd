@@ -1,0 +1,80 @@
+---
+title: "week3"
+format: html
+---
+
+## Vorlesung
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(sf)
+
+wildschwein <- read_delim("wildschwein_BE_2056.csv", delim = ",")
+
+# wildschwein_BE <- st_as_sf(wildschwein_BE, coords = c("E", "N"), crs = 2056, remove = FALSE)
+
+sabi <- wildschwein |> 
+  filter(TierName == "Sabi", DatetimeUTC >= "2015-07-01", DatetimeUTC < "2015-07-03") # Fehler??? object 'DatetimeUTC' not found
+
+ggplot(sabi, aes(E,N, color = DatetimeUTC))+
+  geom_point()+
+  geom_path()+
+  coord_equal()
+
+# hier bin ich nicht mitgekommen, da kommt noch ein Plot, evtl. unnötig
+
+# Distanz zu 2 Punkte vor und nach betrachten
+sabi <- sabi |> 
+  mutate(
+    n_plus1 = sqrt((lead(E,1)-E)^2+(lead(N,1)-N)^2),
+    n_plus2 = sqrt((lead(E,2)-E)^2+(lead(N,2)-N)^2),
+    n_min1 = sqrt((lag(E,1)-E)^2+(lag(N,1)-N)^2),
+    n_min2 = sqrt((lag(E,2)-E)^2+(lag(N,2)-N)^2)
+    )
+
+# stepmean der 4 Distanzen erstellen
+sabi <- sabi |> 
+  mutate(
+    stepMean = mean(c(n_min1, n_min2, n_plus1, n_plus2), na.rm = TRUE)
+  ) |> 
+  ungroup()
+
+ggplot(sabi, aes(stepMean))+
+  geom_histogram(binwidth = 10)+
+  geom_vline(xintercept = mean(stepMean), na.rm = TRUE)
+
+sabi |> 
+  mutate(static = stepMean < mean(stepMean, na.rm = TRUE)) |>  # Alternative: quantile(stepMean, probs = 0.25, na.rm = TRUE)
+  ggplot(aes(E,N))+
+  geom_path()+
+  geom_point(aes(color = static))+
+  coord_fixed()
+
+```
+
+# Preparation
+
+```{r}
+library("readr")
+library("sf")
+
+posmo <- read_delim("posmo_2023-03-01T00_00_00+01_00-2023-05-05T23_59_59+02_00.csv")
+
+# Keep only the necessary columns
+posmo <- select(posmo, datetime, lon_x, lat_y)
+
+# als sf
+posmo <- st_as_sf(posmo, coords = c("lon_x","lat_y"), crs = 4326) |>
+  st_transform(2056)
+
+# Koordinatenspalten zu sf hinzufügen
+posmo_coordinates <- st_coordinates(posmo)
+posmo <- cbind(posmo, posmo_coordinates)
+
+# einen Tag wählen
+posmo_filter <- posmo |>
+    filter(as.Date(datetime) == "2023-05-03")
+```
+
