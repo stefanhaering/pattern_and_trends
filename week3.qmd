@@ -74,7 +74,58 @@ posmo_coordinates <- st_coordinates(posmo)
 posmo <- cbind(posmo, posmo_coordinates)
 
 # einen Tag wählen
-posmo_filter <- posmo |>
+Tag <- posmo |>
     filter(as.Date(datetime) == "2023-05-03")
+
+ggplot(Tag, aes(X,Y))+
+  geom_path()+
+  geom_point()
+```
+
+# Task 1: Segmentation
+
+```{r}
+# Distanz zu 2 Punkte vor und 2 Punkte nach betrachten
+Tag <- Tag |> 
+  mutate(
+    n_plus1 = sqrt((lead(X,1)-X)^2+(lead(Y,1)-Y)^2),
+    n_plus2 = sqrt((lead(X,2)-X)^2+(lead(Y,2)-Y)^2),
+    n_minus1 = sqrt((lag(X,1)-X)^2+(lag(Y,1)-Y)^2),
+    n_minus2 = sqrt((lag(X,2)-X)^2+(lag(Y,2)-Y)^2)
+    )
+
+# stepmean der 4 Distanzen erstellen
+Tag <- Tag |> 
+  rowwise() |> 
+  mutate(stepMean = mean(c(n_minus1, n_minus2, n_plus1, n_plus2), na.rm = TRUE)) |> 
+  ungroup()
+
+# Beurteilung wie gross Segmente sein sollen
+ggplot(Tag, aes(stepMean))+
+  geom_histogram(binwidth = 10)#+
+  geom_vline(xintercept = mean(stepMean), na.rm = TRUE)
+  
+Tag |> 
+  mutate(static = stepMean < quantile(stepMean, probs = 0.25, na.rm = TRUE)) |>  # besser als mean, da bei mean die strecke wegfällt, welche zu fuss begangen wurde.
+  ggplot(aes(X,Y))+
+  geom_path()+
+  geom_point(aes(color = static))+
+  coord_fixed()
+
+# Filter
+Tag <- Tag |> 
+  mutate(static = stepMean < quantile(stepMean, probs = 0.25, na.rm = TRUE))
+
+Tag_filter <- Tag |>
+    filter(!static) # Punkte werden weggelöscht
+
+# Visualisierung
+Tag_filter |>
+    ggplot(aes(X, Y)) +
+    geom_path() +
+    geom_point() +
+    coord_fixed() +
+    theme(legend.position = "bottom")
+
 ```
 
