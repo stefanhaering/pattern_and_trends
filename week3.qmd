@@ -193,7 +193,62 @@ ggplot(Tag_ID, aes(X,Y, color = segment_id))+
   coord_fixed()
 
 # kurze Segmente wegfiltern
+duration <- Tag_ID |> 
+  group_by(segment_id) |>
+  summarise(duration_min = as.numeric(difftime(max(datetime), min(datetime), units = "mins")))
 
+Tag_ID <- st_join(Tag_ID, duration, by = "segment_id")
+
+Tag_ID_5 <- Tag_ID |> 
+  filter(duration_min >=5)
+
+ggplot(Tag_ID_5, aes(X,Y, color = segment_id.x...11))+
+  geom_path()+
+  geom_point()+
+  coord_fixed()
+
+```
+
+# Task 5: Similarity measures
+
+```{r}
+p <- read_delim("pedestrian.csv", delim = ",")
+
+# Daten erkunden
+ggplot(p, aes(E,N, color = TrajID))+
+  geom_path()+
+  geom_point()+
+  facet_wrap(~TrajID)
+
+```
+
+# Task 6: Calculate similarity
+
+```{r}
+install.packages("SimilarityMeasures")
+library(SimilarityMeasures)
+help(package = "SimilarityMeasures")
+
+# jede trajectory wird als eine matrix gespeichert
+traj1 <- p |> 
+  subset(TrajID == 1) |> 
+  as.matrix()
+
+traj2 <- p |> 
+  subset(TrajID == 2) |> 
+  as.matrix()
+
+# DTW
+DTW(traj1, traj2, pointSpacing= -1) #Error in point1[d] - point2[d] : non-numeric argument to binary operator
+
+# EditDist
+EditDist(traj1, traj2, pointDistance=20) #Error in point1[d] - point2[d] : non-numeric argument to binary operator
+
+# Frechet
+Frechet(traj1, traj2, testLeash=-1) #Error in point1[d] - point2[d] : non-numeric argument to binary operator
+
+# LCSS
+LCSS(traj1, traj2, pointSpacing=-1, pointDistance=20, errorMarg=2, returnTrans=FALSE) #Error in point1[d] - point2[d] : non-numeric argument to binary operator
 
 ```
 
