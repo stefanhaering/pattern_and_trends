@@ -10,6 +10,7 @@ library("readr")
 library("sf") 
 library(ggplot2)
 library(dplyr)
+library(tmap)
 
 wildschwein_BE <- read_delim("wildschwein_BE_2056.csv", ",")
 
@@ -19,7 +20,6 @@ wildschwein_BE <- st_as_sf(wildschwein_BE, coords = c("E", "N"), crs = 2056, rem
 # Task 2: Getting an overview
 
 ```{r}
-
 lead(wildschwein_BE$DatetimeUTC)
 
 wildschwein_BE <- group_by(wildschwein_BE, TierID)
@@ -32,7 +32,7 @@ as.integer(wildschwein$diff)
 wildschwein$TierName |> 
   unique() # drei wildschweine 
 ggplot(wildschwein, aes(DatetimeUTC, TierName))+
-  geom_point() # unterschiedlich lane Aufnahmeperioden in den Jahren 2014 und 2015
+  geom_point() # unterschiedlich lange Aufnahmeperioden in den Jahren 2014 und 2015
 
 ggplot(wildschwein, aes(diff/60))+
   geom_histogram(binwith = 1)+
@@ -86,6 +86,13 @@ caro_9 <- caro |>
 nrow(caro_9) # 23
   
 # calculate timelag, steplength and speed
+caro <- caro |> 
+  mutate(
+    timelag = as.numeric(difftime(lead(DatetimeUTC), DatetimeUTC, units = "secs")),
+    steplength = sqrt((E-lead(E))^2 + (N-lead(N))^2),
+    speed = steplength/timelag
+    )
+
 caro_3 <- caro_3 |> 
   mutate(
     timelag = as.numeric(difftime(lead(DatetimeUTC), DatetimeUTC, units = "secs")),
@@ -112,14 +119,78 @@ ggplot()+ # mehrere Layer
   geom_sf(data = caro)+
   geom_sf(data = caro_3, aes(color = "orange"))+
   theme_void()
+# ??? Wie kann ich Linien hinzufügen?
 
+ggplot()+ # mehrere Layer
+  geom_sf(data = caro)+
+  geom_sf(data = caro_6, aes(color = "orange"))+
+  theme_void()
+# ??? Wie kann ich Linien hinzufügen?
+
+ggplot()+ # mehrere Layer
+  geom_sf(data = caro)+
+  geom_sf(data = caro_9, aes(color = "orange"))+
+  theme_void()
+# ??? Wie kann ich Linien hinzufügen?
+
+
+
+ggplot()+
+  geom_line(data = caro, aes(DatetimeUTC, speed))+
+  geom_line(data = caro_3, aes(DatetimeUTC, speed), color = "red")+
+  geom_line(data = caro_6, aes(DatetimeUTC, speed), color = "green")+
+  geom_line(data = caro_9, aes(DatetimeUTC, speed), color = "blue")+
+  theme_classic()# je weniger Datenpunkte, desto smoother die Kurve
+```
+
+# Task 5 (optional): Deriving movement parameters II: Rolling window functions
+
+```{r}
+library("zoo")
+
+example <- rnorm(10)
+rollmean(example, k = 3, fill = NA, align = "left")
+
+rollmean(example, k = 4, fill = NA, align = "left")
+
+# mache ich evtl. später...
 ```
 
 # Task 6: Add your movement data to your repository
 
 ```{r}
-posmo <- read_csv("posmo_2023-03-01T00_00_00+01_00-2023-04-28T23_59_59+02_00.csv")
+# erledigt
 
+posmo <- read_csv("posmo_2023-03-01T00_00_00+01_00-2023-04-28T23_59_59+02_00.csv")
+posmo <- st_as_sf(posmo, coords = c("lon_x", "lat_y"), crs = 2056, remove = FALSE)
+
+ggplot(posmo)+
+  geom_sf() # Anfangs hat die App wegen einem Energiesparmodus nicht richtig funktioniert, daher ein bisschen abgehackt...
+
+tm_shape(posmo) +
+  tm_dots()
+
+```
+
+# Task 7: Explore your movement data
+
+```{r}
+posmo <- read_csv("posmo_2023-03-01T00_00_00+01_00-2023-04-28T23_59_59+02_00.csv")
+posmo <- st_as_sf(posmo, coords = c("lon_x", "lat_y"), crs = 2056, remove = FALSE)
+
+ggplot(posmo)+
+  geom_sf() # sehr klein und unübersichtlich
+
+# ??? Warum zeigt es hier nicht schweizer Koordinaten an?
+  
+
+tmap_mode("view") # Interaktive Karte, warum funktioniert dies nicht???
+tm_shape(posmo) +
+  tm_dots() 
+
+ggplot(posmo)+
+  geom_sf()+
+  lims(x=c(max(17.11106), mean(16.36766)))
 
 ```
 
