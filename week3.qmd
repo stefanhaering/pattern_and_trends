@@ -1,0 +1,254 @@
+---
+title: "week3"
+format: html
+---
+
+## Vorlesung
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(sf)
+
+wildschwein <- read_delim("wildschwein_BE_2056.csv", delim = ",")
+
+# wildschwein_BE <- st_as_sf(wildschwein_BE, coords = c("E", "N"), crs = 2056, remove = FALSE)
+
+sabi <- wildschwein |> 
+  filter(TierName == "Sabi", DatetimeUTC >= "2015-07-01", DatetimeUTC < "2015-07-03") # Fehler??? object 'DatetimeUTC' not found
+
+ggplot(sabi, aes(E,N, color = DatetimeUTC))+
+  geom_point()+
+  geom_path()+
+  coord_equal()
+
+# hier bin ich nicht mitgekommen, da kommt noch ein Plot, evtl. unnötig
+
+# Distanz zu 2 Punkte vor und nach betrachten
+sabi <- sabi |> 
+  mutate(
+    n_plus1 = sqrt((lead(E,1)-E)^2+(lead(N,1)-N)^2),
+    n_plus2 = sqrt((lead(E,2)-E)^2+(lead(N,2)-N)^2),
+    n_min1 = sqrt((lag(E,1)-E)^2+(lag(N,1)-N)^2),
+    n_min2 = sqrt((lag(E,2)-E)^2+(lag(N,2)-N)^2)
+    )
+
+# stepmean der 4 Distanzen erstellen
+sabi <- sabi |> 
+  mutate(
+    stepMean = mean(c(n_min1, n_min2, n_plus1, n_plus2), na.rm = TRUE)
+  ) |> 
+  ungroup()
+
+ggplot(sabi, aes(stepMean))+
+  geom_histogram(binwidth = 10)+
+  geom_vline(xintercept = mean(stepMean), na.rm = TRUE)
+
+sabi |> 
+  mutate(static = stepMean < mean(stepMean, na.rm = TRUE)) |>  # Alternative: quantile(stepMean, probs = 0.25, na.rm = TRUE)
+  ggplot(aes(E,N))+
+  geom_path()+
+  geom_point(aes(color = static))+
+  coord_fixed()
+
+```
+
+# Preparation
+
+```{r}
+library("readr")
+library("sf")
+
+posmo <- read_delim("posmo_2023-03-01T00_00_00+01_00-2023-05-05T23_59_59+02_00.csv")
+
+# Keep only the necessary columns
+posmo <- select(posmo, datetime, lon_x, lat_y)
+
+# als sf
+posmo <- st_as_sf(posmo, coords = c("lon_x","lat_y"), crs = 4326) |>
+  st_transform(2056)
+
+# Koordinatenspalten zu sf hinzufügen
+posmo_coordinates <- st_coordinates(posmo)
+posmo <- cbind(posmo, posmo_coordinates)
+
+# einen Tag wählen
+Tag <- posmo |>
+    filter(as.Date(datetime) == "2023-05-03")
+
+ggplot(Tag, aes(X,Y))+
+  geom_path()+
+  geom_point()
+```
+
+# Task 1: Segmentation
+
+```{r}
+# Distanz zu 2 Punkte vor und 2 Punkte nach betrachten
+Tag <- Tag |> 
+  mutate(
+    n_plus1 = sqrt((lead(X,1)-X)^2+(lead(Y,1)-Y)^2),
+    n_plus2 = sqrt((lead(X,2)-X)^2+(lead(Y,2)-Y)^2),
+    n_minus1 = sqrt((lag(X,1)-X)^2+(lag(Y,1)-Y)^2),
+    n_minus2 = sqrt((lag(X,2)-X)^2+(lag(Y,2)-Y)^2)
+    )
+
+# stepmean der 4 Distanzen erstellen
+Tag <- Tag |> 
+  rowwise() |> 
+  mutate(stepMean = mean(c(n_minus1, n_minus2, n_plus1, n_plus2), na.rm = TRUE)) |> 
+  ungroup()
+
+# Beurteilung wie gross Segmente sein sollen
+ggplot(Tag, aes(stepMean))+
+  geom_histogram(binwidth = 10)#+
+  geom_vline(xintercept = mean(stepMean), na.rm = TRUE)
+  
+Tag |> 
+  mutate(static = stepMean < quantile(stepMean, probs = 0.25, na.rm = TRUE)) |>  # besser als mean, da bei mean die strecke wegfällt, welche zu fuss begangen wurde.
+  ggplot(aes(X,Y))+
+  geom_path()+
+  geom_point(aes(color = static))+
+  coord_fixed()
+
+# Filter
+Tag <- Tag |> 
+  mutate(static = stepMean < quantile(stepMean, probs = 0.25, na.rm = TRUE))
+
+Tag_filter <- Tag |>
+    filter(!static) # Punkte werden weggelöscht
+
+# Visualisierung
+Tag_filter |>
+    ggplot(aes(X, Y)) +
+    geom_path() +
+    geom_point() +
+    coord_fixed() +
+    theme(legend.position = "bottom")
+
+```
+
+# Task 2: Specify and apply threshold d
+
+```{r}
+# also doch mit mean (Auftrag)...
+
+# Distanz zu 2 Punkte vor und 2 Punkte nach betrachten
+Tag <- Tag |> 
+  mutate(
+    n_plus1 = sqrt((lead(X,1)-X)^2+(lead(Y,1)-Y)^2),
+    n_plus2 = sqrt((lead(X,2)-X)^2+(lead(Y,2)-Y)^2),
+    n_minus1 = sqrt((lag(X,1)-X)^2+(lag(Y,1)-Y)^2),
+    n_minus2 = sqrt((lag(X,2)-X)^2+(lag(Y,2)-Y)^2)
+    )
+
+# stepmean der 4 Distanzen erstellen
+Tag <- Tag |> 
+  rowwise() |> 
+  mutate(stepMean = mean(c(n_minus1, n_minus2, n_plus1, n_plus2), na.rm = TRUE)) |> 
+  ungroup()
+
+# Filter
+Tag <- Tag |> 
+  mutate(static = stepMean < mean(stepMean, na.rm = TRUE))
+
+Tag_filter <- Tag |>
+    filter(!static) # Punkte werden weggelöscht
+
+# Visualisierung
+Tag_filter |>
+    ggplot(aes(X, Y)) +
+    geom_path() +
+    geom_point() +
+    coord_fixed() +
+    theme(legend.position = "bottom")
+
+```
+
+# Task 3: Visualize segmented trajectories
+
+```{r}
+ggplot(Tag, aes(X,Y))+
+  geom_path()+
+  geom_point(aes(color = static))+
+  coord_fixed()
+```
+
+# Task 4: Segment-based analysis
+
+```{r}
+# Segmente erstellen
+rle_id <- function(vec) {
+    x <- rle(vec)$lengths
+    as.factor(rep(seq_along(x), times = x))
+}
+
+Tag_ID <- Tag |>
+    mutate(segment_id = rle_id(static))
+
+ggplot(Tag_ID, aes(X,Y, color = segment_id))+
+  geom_path()+
+  geom_point()+
+  coord_fixed()
+
+# kurze Segmente wegfiltern
+duration <- Tag_ID |> 
+  group_by(segment_id) |>
+  summarise(duration_min = as.numeric(difftime(max(datetime), min(datetime), units = "mins")))
+
+Tag_ID <- st_join(Tag_ID, duration, by = "segment_id")
+
+Tag_ID_5 <- Tag_ID |> 
+  filter(duration_min >=5)
+
+ggplot(Tag_ID_5, aes(X,Y, color = segment_id.x...11))+
+  geom_path()+
+  geom_point()+
+  coord_fixed()
+
+```
+
+# Task 5: Similarity measures
+
+```{r}
+p <- read_delim("pedestrian.csv", delim = ",")
+
+# Daten erkunden
+ggplot(p, aes(E,N, color = TrajID))+
+  geom_path()+
+  geom_point()+
+  facet_wrap(~TrajID)
+
+```
+
+# Task 6: Calculate similarity
+
+```{r}
+install.packages("SimilarityMeasures")
+library(SimilarityMeasures)
+help(package = "SimilarityMeasures")
+
+# jede trajectory wird als eine matrix gespeichert
+traj1 <- p |> 
+  subset(TrajID == 1) |> 
+  as.matrix()
+
+traj2 <- p |> 
+  subset(TrajID == 2) |> 
+  as.matrix()
+
+# DTW
+DTW(traj1, traj2, pointSpacing= -1) #Error in point1[d] - point2[d] : non-numeric argument to binary operator
+
+# EditDist
+EditDist(traj1, traj2, pointDistance=20) #Error in point1[d] - point2[d] : non-numeric argument to binary operator
+
+# Frechet
+Frechet(traj1, traj2, testLeash=-1) #Error in point1[d] - point2[d] : non-numeric argument to binary operator
+
+# LCSS
+LCSS(traj1, traj2, pointSpacing=-1, pointDistance=20, errorMarg=2, returnTrans=FALSE) #Error in point1[d] - point2[d] : non-numeric argument to binary operator
+
+```
+
