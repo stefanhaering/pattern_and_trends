@@ -202,7 +202,7 @@ Tag_ID <- st_join(Tag_ID, duration, by = "segment_id")
 Tag_ID_5 <- Tag_ID |> 
   filter(duration_min >=5)
 
-ggplot(Tag_ID_5, aes(X,Y, color = segment_id.x...11))+
+ggplot(Tag_ID_5, aes(X,Y, color = segment_id.x))+
   geom_path()+
   geom_point()+
   coord_fixed()
@@ -225,7 +225,7 @@ ggplot(p, aes(E,N, color = TrajID))+
 # Task 6: Calculate similarity
 
 ```{r}
-install.packages("SimilarityMeasures")
+install.packages("SimilarityMeasures") # Errormeldung! Ich kann das package nicht herunterladen? Rtools ist anscheinend nicht installiert (ist aber...)
 library(SimilarityMeasures)
 help(package = "SimilarityMeasures")
 
@@ -238,17 +238,98 @@ traj2 <- p |>
   subset(TrajID == 2) |> 
   as.matrix()
 
+traj1 <- p |> 
+  filter(TrajID==1) |> 
+  select(-TrajID) |> 
+  as.matrix()
+  
+traj2 <- p |> 
+  filter(TrajID==2) |> 
+  select(-TrajID) |> 
+  as.matrix()
+
+traj3 <- p |> 
+  filter(TrajID==3) |> 
+  select(-TrajID) |> 
+  as.matrix()
+
+traj4 <- p |> 
+  filter(TrajID==4) |> 
+  select(-TrajID) |> 
+  as.matrix()
+
+traj5 <- p |> 
+  filter(TrajID==5) |> 
+  select(-TrajID) |> 
+  as.matrix()
+
+traj6 <- p |> 
+  filter(TrajID==6) |> 
+  select(-TrajID) |> 
+  as.matrix()
+
+# Code ab hier von Mitstudierenden angeschaut, da Packet nicht geladen werden konnte
 # DTW
 DTW(traj1, traj2, pointSpacing= -1) #Error in point1[d] - point2[d] : non-numeric argument to binary operator
+
+DTW_comparison <- c(DTW(traj1, traj2),
+DTW(traj1, traj3),
+DTW(traj1, traj4),
+DTW(traj1, traj5),
+DTW(traj1, traj6))
 
 # EditDist
 EditDist(traj1, traj2, pointDistance=20) #Error in point1[d] - point2[d] : non-numeric argument to binary operator
 
+EditDistance_comparison <- c(EditDist(traj1, traj2, pointDistance = 20),
+EditDist(traj1, traj3),
+EditDist(traj1, traj4),
+EditDist(traj1, traj5),
+EditDist(traj1, traj6))
+
 # Frechet
 Frechet(traj1, traj2, testLeash=-1) #Error in point1[d] - point2[d] : non-numeric argument to binary operator
 
+Frechet_comparison <- c(Frechet(traj1, traj2, testLeash=-1),
+Frechet(traj1, traj3),
+Frechet(traj1, traj4),
+Frechet(traj1, traj5),
+Frechet(traj1, traj6))
+
 # LCSS
 LCSS(traj1, traj2, pointSpacing=-1, pointDistance=20, errorMarg=2, returnTrans=FALSE) #Error in point1[d] - point2[d] : non-numeric argument to binary operator
+
+LCSS_comparison <- c(LCSS(traj1, traj2, pointSpacing=3, pointDistance=20, 
+     errorMarg=2, returnTrans=FALSE),
+LCSS(traj1, traj3, pointSpacing=3, pointDistance=20, 
+     errorMarg=2, returnTrans=FALSE),
+LCSS(traj1, traj4, pointSpacing=3, pointDistance=20, 
+     errorMarg=2, returnTrans=FALSE),
+LCSS(traj1, traj5, pointSpacing=3, pointDistance=20, 
+     errorMarg=2, returnTrans=FALSE),
+LCSS(traj1, traj6, pointSpacing=3, pointDistance=20, 
+     errorMarg=2, returnTrans=FALSE))
+
+# Alle Comparisons zusammenfügen
+comparison <- data.frame(DTW_comparison, EditDistance_comparison, Frechet_comparison, LCSS_comparison)
+comparison$traj <- c(1,2,3,4,5)
+
+head(comparison)
+
+#Visualisierung
+cowplot::plot_grid(
+  ggplot(comparison, aes(traj, DTW_comparison, fill=traj))+
+  geom_bar(stat = "identity"),
+
+ggplot(comparison, aes(traj, EditDistance_comparison, fill=traj))+
+  geom_bar(stat = "identity"),
+
+ggplot(comparison, aes(traj, Frechet_comparison, fill=traj))+
+  geom_bar(stat = "identity"),
+
+ggplot(comparison, aes(traj, LCSS_comparison, fill=traj))+
+  geom_bar(stat = "identity")
+)
 
 ```
 
